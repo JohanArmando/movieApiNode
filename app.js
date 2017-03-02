@@ -10,14 +10,9 @@ var config = require('./lib/config');
 
 var app = express();
 
-mongoose.createConnection(config.database);
-//mongoose.connect(config.database);
 
-var auth_middle = require('./lib/middleware/auth')
-var auth = require('./routes/auth')
-var index = require('./routes/index')
-var movie = require('./routes/movie')
-var user = require('./routes/user')
+var index = require('./routes/index');
+var movie = require('./routes/movies');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -26,18 +21,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(cors({origin: 'http://www.google.com'}))
 
 //  Rutas inseguras
-app.use('/', index)
-app.use('/auth', auth)
-app.use('/user', user)
-
-//  Middleware
-app.use(auth_middle)
-
-//  Rutas seguras
-app.use('/movie', movie)
+app.use('/', index);
+app.use('/movie', movie);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

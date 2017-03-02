@@ -1,357 +1,223 @@
 "use strict"
-let request = require('supertest-as-promised')
+let request = require('supertest-as-promised');
+const api = require('../app');
+const host = api;
 const _ = require('lodash')
-const mongoose = require('mongoose')
-const config = require('../lib/config')
-const api = require('../app')
-const host = api
 
-request = request(host)
+request = request(host);
 
-describe('la ruta de peliculas', function() {
-  before(() => {
-    mongoose.connect(config.database)
-  })
+describe('Rutas de las peliculas' , () => {
+    describe('Post Create' , () => {
+        it('Deberia crear una pelicula' , (done) => {
+            let movie = {
+                'title': 'Back to the future',
+                'year': '1985'
+            };
 
-  after((done) => {
-    mongoose.disconnect(done)
-    mongoose.models = {}
-  })
+            request
+                .post('/movie')
+                .set('Accept', 'application/json')
+                .send(movie)
+                .expect(201)
+                .expect('Content-Type',  /application\/json/)
+            .end((err , res) => {
+                let body = res.body;
+                expect(body).to.have.property('movie');
+                movie = body.movie;
+                expect(movie).to.have.property('title' , 'Back to the future');
+                expect(movie).to.have.property('year' , '1985');
+                expect(movie).to.have.property('_id');
+                done(err);
+            });
+        });
+    });
 
-  describe('una peticion a Post', function() {
-    it('deberia crear una pelicula', function(done) {
-      let movie = {
-        'title': 'back to the future',
-        'year': '1985'
-      }
-      let user = {
-        'username': 'jerome olvera',
-        'password': '123456'
-      }
-        
-      request
-        .post('/user')
-        .set('Accept', 'application/json')
-        .send(user)
-        .expect(201)
-        .expect('Content-Type', /application\/json/)
-      .then((res) => {
-        let _user = res.body.user
-        _user.password = user.password
+    /**
+     * Get all movies
+     */
 
-        return request
-          .post('/auth')
-          .set('Accept', 'application/json')
-          .send(_user)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let token = res.body.token
-        return request
-          .post('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .send(movie)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let body = res.body
+    describe('GET /', function() {
+        it('deberia obtener todas las peliculas', function(done) {
+            let movie_id
+            let movie2_id
 
-        expect(body).to.have.property('movie')
-        movie = body.movie
+            let movie = {
+                'title': 'back to the future',
+                'year': '1985'
+            }
 
-        expect(movie).to.have.property('title', 'back to the future')
-        expect(movie).to.have.property('year', '1985')
-        expect(movie).to.have.property('_id')
+            let movie2 = {
+                'title': 'back to the future 2',
+                'year': '1989'
+            }
+            request
+                .post('/movie')
+                .set('Accept', 'application/json')
+                .send(movie)
+                .expect(201)
+                .expect('Content-Type', /application\/json/)
+                .then((res) => {
+                    movie_id = res.body.movie._id
 
-        done()
-      })
-    })
-  })
+                    return request
+                        .post('/movie')
+                        .set('Accept', 'application/json')
+                        .send(movie2)
+                        .expect(201)
+                        .expect('Content-Type', /application\/json/)
+                })
+                .then((res) => {
+                    movie2_id = res.body.movie._id
 
-  describe('GET /', function() {
-    it('deberia obtener todas las peliculas', function(done) {
-      let movie_id
-      let movie2_id
-      let token
+                    return request
+                        .get('/movie')
+                        .set('Accept', 'application/json')
+                        .expect(200)
+                        .expect('Content-Type', /application\/json/)
+                })
+                .then((res) => {
+                    let body = res.body
 
-      let movie = {
-        'title': 'back to the future',
-        'year': '1985'
-      }
+                    expect(body).to.have.property('movies')
+                    expect(body.movies).to.be.an('array')
+                        .and.to.have.length.above(2)
 
-      let movie2 = {
-        'title': 'back to the future 2',
-        'year': '1989'
-      }
+                    let movies = body.movies
+                    movie = _.find(movies, {_id: movie_id})
+                    movie2 = _.find(movies, {_id: movie2_id})
 
-      let user = {
-        'username': 'jerome olvera',
-        'password': '123456'
-      }
-        
-      request
-        .post('/user')
-        .set('Accept', 'application/json')
-        .send(user)
-        .expect(201)
-        .expect('Content-Type', /application\/json/)
-      .then((res) => {
-        let _user = res.body.user
-        _user.password = user.password
+                    expect(movie).to.have.property('_id', movie_id)
+                    expect(movie).to.have.property('title', 'back to the future')
+                    expect(movie).to.have.property('year', '1985')
 
-        return request
-          .post('/auth')
-          .set('Accept', 'application/json')
-          .send(_user)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        token = res.body.token
+                    expect(movie2).to.have.property('_id', movie2_id)
+                    expect(movie2).to.have.property('title', 'back to the future 2')
+                    expect(movie2).to.have.property('year', '1989')
 
-        return request
-          .post('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .send(movie)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        movie_id = res.body.movie._id
+                    done()
+                }, done)
+        })
+    });
 
-        return request
-          .post('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .send(movie2)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        movie2_id = res.body.movie._id
+    /**
+     * SHOW movie
+     */
+    describe('peticion GET /:id', function() {
+        it('deberia una sola pelicula', function(done) {
+            let movie_id;
+            let movie = {
+                'title': 'her',
+                'year': '2013'
+            };
+            request
+                .post('/movie')
+                .set('Accept', 'application/json')
+                .send(movie)
+                .expect(201)
+                .expect('Content-Type', /application\/json/)
+                .then((res) => {
+                    movie_id = res.body.movie._id;
+                    return request
+                        .get('/movie/' + movie_id)
+                        .set('Accept', 'application/json')
+                        .expect(200)
+                        .expect('Content-Type', /application\/json/)
+                })
+                .then((res) => {
+                    let body = res.body
 
-        return request
-          .get('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .expect(200)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let body = res.body
+                    expect(body).to.have.property('movie')
+                    movie = body.movie
 
-        expect(body).to.have.property('movies')
-        expect(body.movies).to.be.an('array')
-          .and.to.have.length.above(2)
+                    expect(movie).to.have.property('_id', movie_id)
+                    expect(movie).to.have.property('title', 'her')
+                    expect(movie).to.have.property('year', '2013')
+                    done()
+            }, done)
+        })
+    });
 
-        let movies = body.movies
-        movie = _.find(movies, {_id: movie_id})
-        movie2 = _.find(movies, {_id: movie2_id})
+    /**
+     * UPDATE
+     */
 
-        expect(movie).to.have.property('_id', movie_id)
-        expect(movie).to.have.property('title', 'back to the future')
-        expect(movie).to.have.property('year', '1985')
+    describe('peticion PUT /:id', function() {
+        it('deberia actualizar una pelicula', function(done) {
+            let movie_id
+            let movie = {
+                'title': 'pulp fiction',
+                'year': '1993'
+            }
 
-        expect(movie2).to.have.property('_id', movie2_id)
-        expect(movie2).to.have.property('title', 'back to the future 2')
-        expect(movie2).to.have.property('year', '1989')
+            request
+                    .post('/movie')
+                    .set('Accept', 'application/json')
+                    .send(movie)
+                    .expect(201)
+                    .expect('Content-Type', /application\/json/)
+            .then((res) => {
+                movie_id = res.body.movie._id
+                let movie = {
+                    'title': 'new fiction',
+                    'year': '1993'
+                }
+                return request
+                    .put('/movie/' + movie_id)
+                    .set('Accept', 'application/json')
+                    .send(movie)
+                    .expect(200)
+                    .expect('Content-Type', /application\/json/)
+            })
+            .then((res) => {
+                let body = res.body
 
-        done()
-      }, done)
-    })
-  })
+                expect(body).to.have.property('movie')
+                movie = body.movie
 
-  describe('peticion GET /:id', function() {
-    it('deberia una sola pelicula', function(done) {
-      let token
-      let movie_id
-      let movie = {
-        'title': 'her',
-        'year': '2013'
-      }
-      let user = {
-        'username': 'jerome olvera',
-        'password': '123456'
-      }
+                expect(movie).to.have.property('_id', movie_id)
+                expect(movie).to.have.property('title', 'new fiction')
+                expect(movie).to.have.property('year', '1993')
+                done()
+            }, done)
+        });
+    });
 
-      request
-        .post('/user')
-        .set('Accept', 'application/json')
-        .send(user)
-        .expect(201)
-        .expect('Content-Type', /application\/json/)
-      .then((res) => {
-        let _user = res.body.user
-        _user.password = user.password
+    /**
+     * DELETE
+     */
 
-        return request
-          .post('/auth')
-          .set('Accept', 'application/json')
-          .send(_user)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        token = res.body.token
+    describe('DELETE:id peliculas' , () =>{
+       it('Deberia eliminar pelicula' , (done) => {
+           let movie_id
+           let movie = {
+               'title': 'pulp fiction',
+               'year': '1993'
+           }
 
-        return request
-          .post('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .send(movie)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        movie_id = res.body.movie._id
+           request
+               .post('/movie')
+               .set('Accept', 'application/json')
+               .send(movie)
+               .expect(201)
+               .expect('Content-Type', /application\/json/)
+               .then((res) => {
+                   movie_id = res.body.movie._id
+                   let movie = {
+                       'title': 'new fiction',
+                       'year': '1993'
+                   }
+                   return request
+                       .delete('/movie/' + movie_id)
+                       .set('Accept', 'application/json')
+                       .expect(400)
+                       .expect('Content-Type', /application\/json/)
+               })
+               .then((res) => {
+                   let body = res.body
 
-        return request
-          .get('/movie/' + movie_id)
-          .set('x-access-token', token)
-          .set('Accept', 'application/json')
-          .expect(200)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let body = res.body
-
-        expect(body).to.have.property('movie')
-        movie = body.movie
-
-        expect(movie).to.have.property('_id', movie_id)
-        expect(movie).to.have.property('title', 'her')
-        expect(movie).to.have.property('year', '2013')
-        done()
-      }, done)
-    })
-  })
-
-  describe('una peticion PUT: /movie', function() {
-    it('debera modificar una pelicula', function(done) {
-      let movie_id
-      let token
-      let movie = {
-        'title': 'pulp fiction',
-        'year': '1993'
-      }
-
-      let user = {
-        'username': 'jerome olvera',
-        'password': '123456'
-      }
-
-      request
-        .post('/user')
-        .set('Accept', 'application/json')
-        .send(user)
-        .expect(201)
-        .expect('Content-Type', /application\/json/)
-      .then((res) => {
-        let _user = res.body.user
-        _user.password = user.password
-
-        return request
-          .post('/auth')
-          .set('Accept', 'application/json')
-          .send(_user)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        token = res.body.token
-
-        return request
-          .post('/movie')
-          .set('x-access-token', token)
-          .set('Accept', 'application/json')
-          .send(movie)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        movie_id = res.body.movie._id
-        return request
-          .put('/movie/' + movie_id)
-          .set('x-access-token', token)
-          .set('Accept', 'application/json')
-          .send(movie)
-          .expect(200)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let body = res.body
-
-        expect(body).to.have.property('movie')
-        movie = body.movie
-
-        expect(movie).to.have.property('_id', movie_id)
-        expect(movie).to.have.property('title', 'pulp fiction')
-        expect(movie).to.have.property('year', '1993')
-        done()
-      }, done)
-    })
-  })
-
-  describe('elimina pelicula DELETE', function() {
-    it('debera eliminar una pelicula', function(done) {
-      let movie_id
-      let token
-      let movie = {
-        'title': 'pulp fiction',
-        'year': '1993'
-      }
-      let user = {
-        'username': 'jerome olvera',
-        'password': '123456'
-      }
-
-      request
-        .post('/user')
-        .set('Accept', 'application/json')
-        .send(user)
-        .expect(201)
-        .expect('Content-Type', /application\/json/)
-      .then((res) => {
-        let _user = res.body.user
-        _user.password = user.password
-
-        return request
-          .post('/auth')
-          .set('Accept', 'application/json')
-          .send(_user)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        token = res.body.token
-
-        return request
-          .post('/movie')
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .send(movie)
-          .expect(201)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        movie_id = res.body.movie._id
-        return request
-          .delete('/movie/' + movie_id)
-          .set('Accept', 'application/json')
-          .set('x-access-token', token)
-          .expect(400)
-          .expect('Content-Type', /application\/json/)
-      })
-      .then((res) => {
-        let body = res.body
-
-        expect(body).to.be.empty
-        done()
-      }, done)
-    })
-  })
-})
+                   expect(body).to.be.empty
+                   done()
+               }, done)
+       });
+    });
+});
